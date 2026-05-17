@@ -42,7 +42,7 @@ const tasks: Array<BuildOptions & { label: string }> = [
     // deps stay external too (asarUnpack keeps them on disk so dlopen works).
     // Native OpenCV must stay external so the compiled .node binding can be
     // loaded from node_modules at runtime.
-    external: ['electron', 'uiohook-napi', 'esbuild', '@u4/opencv4nodejs', 'sharp'],
+    external: ['electron', 'uiohook-napi', 'esbuild', '@u4/opencv4nodejs'],
     sourcemap: 'linked',
     banner: { js: MAIN_BANNER },
     define: MAIN_DEFINE,
