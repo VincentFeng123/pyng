@@ -2,7 +2,7 @@ import { app } from 'electron';
 
 declare const __PYNG_BUILD_RELAY_URL__: string | undefined;
 
-const DEFAULT_PROD_RELAY_URL = 'wss://pyng-relay.up.railway.app';
+const DEFAULT_PROD_RELAY_URL = 'wss://pyng2.vincent-feng1.workers.dev';
 const BUILD_RELAY_URL =
   typeof __PYNG_BUILD_RELAY_URL__ === 'string' ? __PYNG_BUILD_RELAY_URL__.trim() : '';
 const PROD_RELAY_URL = BUILD_RELAY_URL.length > 0 ? BUILD_RELAY_URL : DEFAULT_PROD_RELAY_URL;

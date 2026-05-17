@@ -24265,7 +24265,7 @@ async function showAccessibilityPrompt(parent) {
 
 // src/main/config.ts
 var import_electron2 = require("electron");
-var DEFAULT_PROD_RELAY_URL = "wss://pyng-relay.up.railway.app";
+var DEFAULT_PROD_RELAY_URL = "wss://pyng2.vincent-feng1.workers.dev";
 var BUILD_RELAY_URL = true ? "".trim() : "";
 var PROD_RELAY_URL = BUILD_RELAY_URL.length > 0 ? BUILD_RELAY_URL : DEFAULT_PROD_RELAY_URL;
 var DEV_RELAY_URL = "ws://localhost:7788";

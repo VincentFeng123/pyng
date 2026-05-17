@@ -338,26 +338,23 @@ unit test exercises it, but driving it from an EXTERNAL process (where
 our integration tests live) would require a test-driver IPC mechanism
 that does not exist in v2. Manual is the gate.
 
-### 10. End-to-end against the Railway production relay
+### 10. End-to-end against the Cloudflare production relay
 
-The v2 production relay lives at `wss://pyng-relay.up.railway.app` (per
-the v2 amendment #63/#64 — the spec originally targeted Fly.io but the
-deploy was redirected mid-v2).
+The production relay lives at `wss://pyng2.vincent-feng1.workers.dev`.
 
 **Procedure:**
 1. From a clean machine, install pyng from the landing page (the v2.0.0
    GitHub release artifact).
 2. Confirm the relay is up:
    ```
-   curl https://pyng-relay.up.railway.app/healthz
+   curl https://pyng2.vincent-feng1.workers.dev/healthz
    ```
    Expected response: `ok`.
-3. Launch pyng. The dashboard should show `relay=wss://pyng-relay.up.railway.app`
+3. Launch pyng. The dashboard should show `relay=wss://pyng2.vincent-feng1.workers.dev`
    in the bottom-right or Settings tab.
 4. Generate a pairing code. Have a second machine (or a second user)
    install pyng and redeem the code.
-5. Both clients should reach `Paired!` state within 3 seconds INCLUDING
-   any Railway cold-start delay.
+5. Both clients should reach `Paired!` state within 3 seconds.
 6. Run scenario 9 (hold-Z-click) against this paired session.
 
 **Pass criteria:** pair completes < 3s wall-clock from "click Generate"
@@ -365,32 +362,27 @@ to "Paired" on both ends. Cross-machine ping arrives < 500ms after the
 sender's click.
 
 **Fail signals:**
-- `curl /healthz` returns 502 or times out → Railway service is down.
-  Check the Railway dashboard; cold-start should auto-scale within 5s
-  but if it's been hours since last activity AND `min_machines_running`
-  isn't honored, expect a 5–10s initial delay on first request.
+- `curl /healthz` returns 502 or times out → Cloudflare Worker deploy is down.
+  Check the Worker deployment and logs in the Cloudflare dashboard.
 - `Paired!` never fires on both sides → either the code expired (10min
   TTL, very unlikely in fresh use) or one of the clients can't reach
-  Railway (firewall, corporate proxy).
-- Cross-machine ping latency > 500ms repeatedly → server-side latency
-  problem; check the Railway region (should be `us-east-1` or closest
-  to dev).
+  Cloudflare (firewall, corporate proxy).
+- Cross-machine ping latency > 500ms repeatedly → relay latency problem;
+  check Cloudflare Worker logs and client network conditions.
 
-### 11. Production cold-start latency
+### 11. Production resume latency
 
-Separate verification of #10's "< 3s including cold-start" gate. Railway
-machines may stop after extended idle even with `min_machines_running=1`;
-this scenario isolates that path.
+Separate verification of #10's "< 3s" gate after the app has been idle.
+Cloudflare Workers do not use the Railway container cold-start path, but
+long-term pair resume still needs to stay quick.
 
 **Procedure:**
 1. Wait at least 30 minutes since the last user activity against
-   pyng-relay.up.railway.app. (If you can't wait, hit the Railway UI's
-   "Stop Service" then "Start Service" to force a cold container.)
+   pyng2.vincent-feng1.workers.dev.
 2. From a fresh boot of pyng on one machine, generate a code.
 3. Redeem on a second machine.
 
-**Pass criteria:** pair completes in < 3 seconds total wall-clock,
-including container cold-start.
+**Pass criteria:** pair completes in < 3 seconds total wall-clock.
 
 **Fail signals:**
 - Pair takes > 5 seconds → cold-start is too slow. Check Railway

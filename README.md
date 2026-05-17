@@ -50,12 +50,12 @@ npm run build:win    # Windows NSIS installer
 The `dev:peer` and `dev:solo` modes don't need a server (mock peer / no peer
 respectively). `npm run dev` starts a local relay on `ws://localhost:7788`.
 
-For production builds, the client points at the Railway-hosted relay
-(`wss://pyng-relay.up.railway.app`); override with `PYNG_RELAY_URL=...` for
-self-hosted relays. For Cloudflare Workers + Durable Objects deployment, use
-`PYNG_BUILD_RELAY_URL=...` when building the packaged Electron app. See
-`docs/CLOUDFLARE_DEPLOY.md` for the full Cloudflare setup and
-`server/DEPLOY.md` for Railway relay deploy instructions.
+For production builds, the client points at the Cloudflare Workers relay
+(`wss://pyng2.vincent-feng1.workers.dev`); override with `PYNG_RELAY_URL=...`
+for local testing or `PYNG_BUILD_RELAY_URL=...` when building a packaged app
+against a different relay. See `docs/CLOUDFLARE_DEPLOY.md` for the full
+Cloudflare setup and `server/DEPLOY.md` for legacy Railway relay deploy
+instructions.
 
 ## Architecture
 
