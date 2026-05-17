@@ -1,0 +1,38 @@
+{
+  "name": "@pyng/client",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "main": "src/main/index.ts",
+  "scripts": {
+    "dev:main": "node --watch --import tsx src/main/index.ts",
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "test": "node --import tsx --test src/main/*.test.ts src/main/input/*.test.ts src/main/ocr/*.test.ts src/main/matching/*.test.ts src/main/tracking/*.test.ts src/overlay/*.test.ts src/overlay/components/*.test.ts",
+    "test:electron": "node --import tsx scripts/spawn-electron-tests.ts",
+    "build:main": "node --import tsx scripts/build-main.ts",
+    "build": "npm run build:main && electron-builder --win"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^7.2.0",
+    "@fortawesome/free-solid-svg-icons": "^7.2.0",
+    "@fortawesome/react-fontawesome": "^3.3.1",
+    "@u4/opencv4nodejs": "^7.1.2",
+    "sharp": "0.34.5",
+    "tesseract.js": "7.0.0",
+    "uiohook-napi": "^1.5.4"
+  },
+  "devDependencies": {
+    "@pyng/shared": "*",
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
+    "@types/ws": "^8.5.10",
+    "electron": "42.0.1",
+    "electron-builder": "^25.1.8",
+    "electron-store": "^10.0.0",
+    "esbuild": "^0.25.0",
+    "happy-dom": "^20.9.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "ws": "^8.16.0"
+  }
+}

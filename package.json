@@ -1,0 +1,48 @@
+{
+  "name": "pyng",
+  "private": true,
+  "version": "0.2.0",
+  "description": "Desktop overlay app for cross-PC pings in Roblox FPS spectator mode.",
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node --import tsx scripts/dev.ts",
+    "dev:server": "HOST=127.0.0.1 node --import tsx server/src/index.ts",
+    "dev:client": "MODE=generate electron client/src/main/index.ts",
+    "dev:mock": "node --import tsx scripts/dev.ts --mock",
+    "dev:peer": "node --import tsx scripts/dev-peer.ts",
+    "dev:solo": "node --import tsx scripts/dev-solo.ts",
+    "lint": "eslint . && prettier --check .",
+    "lint:tsc": "npm run lint --workspaces --if-present",
+    "test": "npm run test:integration && npm run test --workspaces --if-present",
+    "test:integration": "node --import tsx --test client/test/integration/*.test.ts",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "tsx": "^4.7.0"
+  },
+  "overrides": {
+    "@u4/opencv-build": {
+      "glob": "^11.1.0"
+    }
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "concurrently": "^9.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^9.1.0",
+    "glob": "^11.1.0",
+    "prettier": "^3.2.0",
+    "typescript": "^5.4.0"
+  }
+}

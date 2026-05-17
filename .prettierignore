@@ -1,0 +1,34 @@
+node_modules
+dist
+out
+release
+build
+package-lock.json
+*.tsbuildinfo
+
+# esbuild-generated artifacts (next to source)
+client/src/overlay/overlay.js
+client/src/overlay/overlay.js.map
+client/src/overlay/tracking-math.js
+client/src/overlay/tracking-math.js.map
+client/src/overlay/components/edge-arrow.js
+client/src/overlay/components/edge-arrow.js.map
+client/src/main/overlay-preload.cjs
+client/src/main/overlay-preload.cjs.map
+client/src/main/ocr/worker.js
+client/src/main/ocr/worker.js.map
+client/src/renderer/settings.js
+client/src/renderer/settings.js.map
+client/src/main/settings-preload.cjs
+client/src/main/settings-preload.cjs.map
+client/src/renderer/main.js
+client/src/renderer/main.js.map
+client/src/main/main-preload.cjs
+client/src/main/main-preload.cjs.map
+client/src/main/index.cjs
+client/src/main/index.cjs.map
+
+# Docs and agent prompts are prose — formatting is hand-curated
+docs/
+*.md
+.claude/

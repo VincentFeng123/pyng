@@ -1,0 +1,82 @@
+appId: gg.pyng.client
+productName: pyng
+copyright: pyng
+# Skip @electron/rebuild: uiohook-napi (our only native dep) ships
+# prebuilt binaries for win/mac/linux via prebuildify, and node-gyp can't
+# cross-compile from macOS to win32 anyway. The prebuilt .node binary lives
+# inside `node_modules/uiohook-napi/prebuilds/`; asarUnpack keeps it on disk
+# at runtime. For a real Windows host build the rebuild would succeed but
+# is still unnecessary because the prebuilt is platform-correct.
+npmRebuild: false
+buildDependenciesFromSource: false
+directories:
+  output: dist
+# Override package.json's `main` for the packaged build only. In dev,
+# `main: src/main/index.ts` lets `tsx` load the TS source directly. For the
+# installer we ship the esbuild-compiled CJS bundle that scripts/build-main.ts
+# emits, with no runtime TypeScript involvement.
+extraMetadata:
+  main: src/main/index.cjs
+files:
+  - 'src/main/index.cjs'
+  - 'src/main/index.cjs.map'
+  - 'src/main/main-preload.cjs'
+  - 'src/main/overlay-preload.cjs'
+  - 'src/main/ocr/worker.js'
+  - 'src/main/ocr/worker.js.map'
+  - 'src/renderer/main.html'
+  - 'src/renderer/main.tsx'
+  - 'src/renderer/main.js'
+  - 'src/renderer/styles.css'
+  - 'src/renderer/components/**'
+  - 'src/renderer/pyng-window.d.ts'
+  - 'src/overlay/index.html'
+  - 'src/overlay/overlay.ts'
+  - 'src/overlay/overlay.js'
+  - 'build/icon.ico'
+  - 'build/tray-iconTemplate.png'
+  - 'build/tray-iconTemplate@2x.png'
+  - 'package.json'
+  - 'src/main/tracking/games/**'
+  - '!src/**/*.test.ts'
+  - '!src/**/*.test.tsx'
+asar: true
+asarUnpack:
+  # uiohook-napi ships a native .node binary; it must stay outside the asar
+  # so the Node loader can dlopen it. The main bundle externalizes it so
+  # `require('uiohook-napi')` resolves to the unpacked module at runtime.
+  - 'node_modules/uiohook-napi/**'
+  # tesseract.js-core ships WASM binaries. worker_threads cannot load WASM
+  # from inside an asar archive, so this must be unpacked to disk at runtime.
+  # tesseract.js-core lives nested under tesseract.js (npm dep tree), so
+  # we glob both the top-level location and the nested one.
+  - 'node_modules/tesseract.js-core/**'
+  - 'node_modules/tesseract.js/node_modules/tesseract.js-core/**'
+  # tesseract.js worker-script (loadLanguage / getCore) is loaded at runtime
+  # by the worker thread; keep it on disk so require() can reach it.
+  - 'node_modules/tesseract.js/**'
+  # @u4/opencv4nodejs ships a native .node binding; keep it unpacked so dlopen
+  # can load it at runtime.
+  - 'node_modules/@u4/opencv4nodejs/**'
+  - 'node_modules/@u4/opencv-build/**'
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+# pyng is English-only for v2. Drop the other 54 Chromium locales (~46 MB
+# uncompressed → ~15 MB compressed installer savings).
+electronLanguages:
+  - en-US
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  runAfterFinish: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: pyng
+  deleteAppDataOnUninstall: false
+  artifactName: ${productName}-Setup-${version}.${ext}
+publish: null

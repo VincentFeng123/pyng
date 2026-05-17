@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>pyng overlay</title>
+    <style>
+      html,
+      body {
+        background: transparent;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        cursor: none;
+        width: 100vw;
+        height: 100vh;
+      }
+      #root {
+        position: absolute;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        pointer-events: none;
+        /* Force own compositing layer. Without this, dynamically-added
+           children of #root are not painted on macOS transparent fullscreen
+           BrowserWindow — the layer is allocated once at first paint and
+           never re-painted when children appear. */
+        transform: translateZ(0);
+      }
+      /* Container per ping so the rAF tick can append a .edge-arrow sibling
+         without touching .ping's innerHTML (compositor safety — see #41). */
+      .ping-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+      }
+      .ping {
+        position: absolute;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        /* Width comes from per-marker inline `width:` set by overlay.ts so
+           the JS WRAPPER_W and the CSS box stay locked together. The avatar
+           and gap sizing use the `--avatar-size` and `--gap-size` custom
+           properties set on the same inline style — single source of truth. */
+        pointer-events: none;
+        opacity: 1;
+        /* --tracking-confidence is set by the rAF tick (0..1). When tracking
+           is active the inline style.opacity set by the tick takes over from
+           the fade-out animation. When tracking is not active the CSS
+           animation runs uninterrupted. */
+        filter: drop-shadow(
+          0 0 calc(5px * var(--tracking-confidence, 1)) var(--ping-color, #ff3344)
+        );
+        /* Force own GPU compositing layer. macOS transparent fullscreen
+           overlays don't reliably paint dynamically-added DOM under #root
+           without this hint. translate3d (vs translateZ) + will-change is
+           the more aggressive form: signals to Chromium that this element
+           and its subtree will animate, so it gets a dedicated layer
+           allocated at creation time. backface-visibility:hidden is
+           belt-and-suspenders for the same goal on older WebKit forks. */
+        transform: translate3d(0, 0, 0);
+        will-change: transform, opacity;
+        backface-visibility: hidden;
+      }
+      .ping::after {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 100%;
+        width: var(--uncertainty-px, 0px);
+        height: var(--uncertainty-px, 0px);
+        border: 2px solid var(--ping-color, #ff3344);
+        border-radius: 50%;
+        opacity: 0;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        box-sizing: border-box;
+      }
+      .ping[data-flipped='true']::after {
+        top: 0;
+      }
+      .ping[data-tracking-state='uncertain']::after,
+      .ping[data-tracking-state='directional']::after {
+        opacity: calc(0.28 * var(--tracking-confidence, 1));
+      }
+      .ping[data-tracking-state='directional'] {
+        filter: drop-shadow(0 0 10px var(--ping-color, #ff3344));
+      }
+      .ping[data-tracking-state='lost'] {
+        filter: grayscale(0.35) drop-shadow(0 0 4px var(--ping-color, #ff3344));
+      }
+      /* Edge-of-screen arrow shown when the tracked ping is off-screen.
+         Created on demand by the rAF tick as a sibling of .ping inside
+         .ping-container. Chevron pointing right by default; transform:rotate
+         is set per-frame by the rAF tick to match arrowAngle. */
+      .edge-arrow {
+        display: none;
+        position: absolute;
+        width: 34px;
+        height: 28px;
+        pointer-events: none;
+        z-index: 9999;
+        transform-origin: center center;
+        will-change: transform, opacity;
+        filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.55));
+      }
+      .edge-arrow svg {
+        width: 100%;
+        height: 100%;
+      }
+      .ping .avatar-slot {
+        width: var(--avatar-size);
+        height: var(--avatar-size);
+        margin-bottom: var(--gap-size);
+        border-radius: 50%;
+        overflow: hidden;
+      }
+      .ping .avatar-img {
+        display: block;
+        width: var(--avatar-size);
+        height: var(--avatar-size);
+        border-radius: 50%;
+        border: 2px solid var(--ping-color);
+        box-sizing: border-box;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+        pointer-events: none;
+        -webkit-user-drag: none;
+        user-select: none;
+        image-rendering: pixelated;
+      }
+      .ping .chevron {
+        display: block;
+      }
+      /* When flipped, the chevron is rendered first (above avatar) and the
+         avatar slot is below — so the gap goes on the avatar's top side. */
+      .ping .chevron + .avatar-slot {
+        margin-bottom: 0;
+        margin-top: var(--gap-size);
+      }
+      /* Fade-out animation. Runs over the ttl set per-marker via inline
+         `animation:` style. CSS-driven instead of Web Animations API so we
+         don't have to re-bind it after innerHTML re-renders.
+         Curve: hold near-full opacity for the first ~55% (the readable
+         window), then accelerate to zero. Implemented as keyframe waypoints
+         rather than animation-timing-function so the curve shape is
+         predictable independent of the per-marker ttl. Scale is intentionally
+         NOT animated — scaling the wrapper would move the chevron tip off
+         the cursor coord during the fade. The tip-on-cursor invariant from
+         the JS positioning math is the higher priority than a receding feel. */
+      @keyframes pyng-fade-out {
+        0% {
+          opacity: 1;
+        }
+        55% {
+          opacity: 0.95;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+      /* Ping-mode: applied to <body> when the user is holding the hotkey.
+         Crosshair cursor + subtle 5% accent tint so the user can see pyng
+         has captured input. Body still has pointer-events: auto by default
+         (only #root is pointer-events: none for click-through to game). */
+      body.pyng-ping-mode {
+        cursor: crosshair !important;
+        background: rgba(124, 58, 237, 0.05);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./overlay.js"></script>
+  </body>
+</html>

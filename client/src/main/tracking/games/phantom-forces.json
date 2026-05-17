@@ -1,0 +1,13 @@
+{
+  "id": "phantom-forces",
+  "displayName": "Phantom Forces",
+  "fovH": 70,
+  "fovV": null,
+  "trackingMask": {
+    "exclude": [
+      { "x": 0.0, "y": 0.85, "w": 1.0, "h": 0.15 },
+      { "x": 0.0, "y": 0.0, "w": 1.0, "h": 0.08 },
+      { "x": 0.45, "y": 0.45, "w": 0.1, "h": 0.1 }
+    ]
+  }
+}

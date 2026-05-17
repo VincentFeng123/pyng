@@ -1,0 +1,60 @@
+node_modules/
+dist/
+out/
+build/
+release/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+.DS_Store
+Thumbs.db
+&1
+
+# Local assistant/editor metadata
+.claude/
+
+.env
+.env.local
+.env.*.local
+
+*.tsbuildinfo
+
+# Electron build artifacts
+client/dist/
+client/out/
+client/release/
+client/.vite/
+
+# Landing page hosts a copy of the installer for local preview; the
+# canonical artifact lives in client/dist/ and is uploaded to GitHub
+# Releases per landing/README.md. Don't track the binary in git.
+landing/*.exe
+
+# Renderer transpilation artifact (esbuild-generated next to source)
+client/src/overlay/overlay.js
+client/src/overlay/overlay.js.map
+client/src/overlay/tracking-math.js
+client/src/overlay/tracking-math.js.map
+client/src/overlay/components/edge-arrow.js
+client/src/overlay/components/edge-arrow.js.map
+
+# Preload transpilation artifact (esbuild-generated next to source)
+client/src/main/overlay-preload.cjs
+client/src/main/overlay-preload.cjs.map
+client/src/main/ocr/worker.js
+client/src/main/ocr/worker.js.map
+client/src/main/settings-preload.cjs
+client/src/main/settings-preload.cjs.map
+client/src/main/main-preload.cjs
+client/src/main/main-preload.cjs.map
+
+# Renderer entrypoint artifacts (esbuild-generated next to source)
+client/src/renderer/settings.js
+client/src/renderer/settings.js.map
+client/src/renderer/main.js
+client/src/renderer/main.js.map
+
+.vscode/
+.idea/

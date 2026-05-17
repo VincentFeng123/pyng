@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>pyng — drop pings on your friend's Roblox screen</title>
+    <meta
+      name="description"
+      content="A desktop overlay that lets dead spectators in Roblox FPS games drop pings on their alive teammate's screen, across separate PCs."
+    />
+    <meta name="theme-color" content="#0e0e10" />
+    <meta property="og:title" content="pyng — drop pings on your friend's Roblox screen" />
+    <meta
+      property="og:description"
+      content="A desktop overlay for Roblox FPS spectators. Drop a ping from your dead screen onto your alive teammate's monitor — across separate PCs."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="demo.gif" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main>
+      <header class="hero">
+        <h1>pyng</h1>
+        <p class="tagline">
+          Drop pings on your friend's screen when you die in any Roblox shooter.
+        </p>
+        <a class="download" href="pyng-Setup-0.2.0.exe" download>
+          <span class="download-label">Download for Windows</span>
+          <span class="meta">v0.2.0 &middot; ~89 MB &middot; Windows 10/11</span>
+        </a>
+      </header>
+
+      <figure class="demo-figure">
+        <!--
+          Placeholder demo.gif (solid dark frame). When the real 15s screencap
+          is ready, replace landing/demo.gif and delete the .demo-placeholder
+          overlay below.
+        -->
+        <div class="demo-frame">
+          <img class="demo" src="demo.gif" alt="placeholder for upcoming pyng demo" />
+          <div class="demo-placeholder" aria-hidden="true">Demo coming soon</div>
+        </div>
+        <figcaption>Pair, die, press Z. Your friend sees the ping instantly.</figcaption>
+      </figure>
+
+      <section class="how" aria-labelledby="how-title">
+        <h2 id="how-title">How it works</h2>
+        <ol>
+          <li>Install pyng on both your and your friend's PCs.</li>
+          <li>One of you generates a 6-character code.</li>
+          <li>The other types it in. You're paired.</li>
+          <li>When you die in-game, press Z to drop a ping on their screen.</li>
+        </ol>
+      </section>
+
+      <section class="warning" aria-labelledby="warning-title">
+        <h2 id="warning-title" class="sr-only">Notes</h2>
+        <p>
+          <strong>Beta software.</strong> Windows will warn &ldquo;Unknown publisher&rdquo; &mdash;
+          click &ldquo;More info&rdquo; &rarr; &ldquo;Run anyway&rdquo;.
+        </p>
+        <p>Tested on Phantom Forces, Bloxstrike, and Operation Onslaught.</p>
+      </section>
+    </main>
+    <footer>
+      <p>pyng is unofficial software. Not affiliated with Roblox Corporation.</p>
+    </footer>
+  </body>
+</html>
