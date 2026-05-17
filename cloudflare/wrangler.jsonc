@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pyng-relay",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-04-07",
+  "observability": {
+    "enabled": true,
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "PAIR_RELAY",
+        "class_name": "PairRelay",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["PairRelay"],
+    },
+  ],
+}

@@ -23,7 +23,11 @@ const SRC_RENDERER = path.join(CLIENT_ROOT, 'src', 'renderer');
 const SRC_OVERLAY = path.join(CLIENT_ROOT, 'src', 'overlay');
 
 const MAIN_BANNER = 'var __pyng_import_meta_url = require("url").pathToFileURL(__filename).href;';
-const MAIN_DEFINE = { 'import.meta.url': '__pyng_import_meta_url' };
+const BUILD_RELAY_URL = process.env.PYNG_BUILD_RELAY_URL ?? process.env.PYNG_RELAY_URL ?? '';
+const MAIN_DEFINE = {
+  'import.meta.url': '__pyng_import_meta_url',
+  __PYNG_BUILD_RELAY_URL__: JSON.stringify(BUILD_RELAY_URL),
+};
 
 const tasks: Array<BuildOptions & { label: string }> = [
   {

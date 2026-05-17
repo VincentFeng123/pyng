@@ -1,5 +1,3 @@
-import { randomUUID } from 'node:crypto';
-
 export type Platform = 'win32' | 'darwin' | 'linux';
 
 export type PairInvalidReason = 'expired' | 'not_found' | 'already_used';
@@ -30,6 +28,10 @@ export type PairBrokenPayload = {
 };
 
 export type PairResumePayload = {
+  groupId: string;
+};
+
+export type PairRevokePayload = {
   groupId: string;
 };
 
@@ -107,6 +109,7 @@ export type Message =
   | EnvelopeBase<'pair:invalid', PairInvalidPayload>
   | EnvelopeBase<'pair:broken', PairBrokenPayload>
   | EnvelopeBase<'pair:resume', PairResumePayload>
+  | EnvelopeBase<'pair:revoke', PairRevokePayload>
   | EnvelopeBase<'username:announce', UsernameAnnouncePayload>
   | EnvelopeBase<'username:match', UsernameMatchPayload>
   | EnvelopeBase<'peer:avatar', PeerAvatarPayload>
@@ -133,6 +136,7 @@ const MESSAGE_TYPES: ReadonlySet<MessageType> = new Set<MessageType>([
   'pair:invalid',
   'pair:broken',
   'pair:resume',
+  'pair:revoke',
   'username:announce',
   'username:match',
   'peer:avatar',
@@ -154,7 +158,7 @@ export function createEnvelope<T extends MessageType>(
   const envelope = {
     type,
     payload,
-    messageId: randomUUID(),
+    messageId: crypto.randomUUID(),
     timestamp: Date.now(),
     ...(opts?.groupId !== undefined ? { groupId: opts.groupId } : {}),
   };

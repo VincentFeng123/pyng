@@ -13,6 +13,7 @@ import {
   getManualHorizontalFov,
   getManualTrackingProfile,
   getHotkey,
+  getPersistentPair,
   getPingColor,
   getRobloxUsername,
   getTrackingFps,
@@ -23,10 +24,12 @@ import {
   saveCalibrationData,
   saveHotkey,
   saveManualTrackingProfile,
+  savePersistentPair,
   savePingColor,
   saveRobloxUsername,
   saveTrackingFps,
   setFirstRunHintShown,
+  clearPersistentPair,
   validateRobloxUsernameSoft,
 } from './settings.js';
 
@@ -43,12 +46,13 @@ function withTempStore<T>(fn: (store: ReturnType<typeof createSettingsStore>) =>
 test('loadSettings returns defaults on a fresh store', () => {
   withTempStore((store) => {
     const s = loadSettings(store);
-    assert.equal(s.version, 6);
+    assert.equal(s.version, 7);
     assert.equal(s.avatar, null);
     assert.deepEqual(s.hotkey, { accelerator: 'P', mode: 'hold' });
     assert.equal(s.firstRunHintShown, false);
     assert.equal(s.robloxUsername, '');
     assert.equal(s.pingColor, DEFAULT_PING_COLOR);
+    assert.equal(s.persistentPair, undefined);
     assert.equal(s.calibrationData, undefined);
     assert.deepEqual(s.tracking, { fps: 'auto' });
     assert.equal(s.manualTrackingProfile, undefined);
@@ -143,6 +147,34 @@ test('savePingColor rejects non-hex colors', () => {
   });
 });
 
+test('savePersistentPair persists a resumable group id', () => {
+  withTempStore((store) => {
+    const groupId = '550e8400-e29b-41d4-a716-446655440000';
+    savePersistentPair(groupId, store);
+    const pair = getPersistentPair(store);
+    assert.ok(pair);
+    assert.equal(pair.groupId, groupId);
+    assert.equal(typeof pair.pairedAt, 'number');
+    assert.equal(loadSettings(store).persistentPair?.groupId, groupId);
+  });
+});
+
+test('clearPersistentPair removes saved pair state', () => {
+  withTempStore((store) => {
+    savePersistentPair('550e8400-e29b-41d4-a716-446655440000', store);
+    clearPersistentPair(store);
+    assert.equal(getPersistentPair(store), null);
+    assert.equal(loadSettings(store).persistentPair, undefined);
+  });
+});
+
+test('savePersistentPair rejects non-uuid group ids', () => {
+  withTempStore((store) => {
+    assert.throws(() => savePersistentPair('not-a-uuid', store), /UUID/);
+    assert.equal(getPersistentPair(store), null);
+  });
+});
+
 test('setFirstRunHintShown persists and getFirstRunHintShown reads it back', () => {
   withTempStore((store) => {
     assert.equal(getFirstRunHintShown(store), false);
@@ -167,7 +199,7 @@ test('pre-v2 settings file (avatar-only) loads with defaults filled', () => {
     );
     const store = createSettingsStore({ cwd: dir, name: 'pyng-settings-test' });
     const s = loadSettings(store);
-    assert.equal(s.version, 6);
+    assert.equal(s.version, 7);
     assert.ok(s.avatar);
     assert.equal(s.avatar.imageBase64, 'ZmFrZQ==');
     assert.deepEqual(s.hotkey, { accelerator: 'P', mode: 'hold' });
@@ -262,7 +294,7 @@ test('validateRobloxUsernameSoft returns ok:true for 4-char non-blocklisted user
 
 // Schema v2 → v3 migration tests
 
-test('pre-v3 settings file (v2 without calibrationData/tracking) migrates cleanly to v6', () => {
+test('pre-v3 settings file (v2 without calibrationData/tracking) migrates cleanly to v7', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'pyng-settings-test-prev3-'));
   try {
     const filePath = path.join(dir, 'pyng-settings-test.json');
@@ -278,7 +310,7 @@ test('pre-v3 settings file (v2 without calibrationData/tracking) migrates cleanl
     );
     const store = createSettingsStore({ cwd: dir, name: 'pyng-settings-test' });
     const s = loadSettings(store);
-    assert.equal(s.version, 6);
+    assert.equal(s.version, 7);
     assert.equal(s.robloxUsername, 'OldUser');
     assert.equal(s.pingColor, DEFAULT_PING_COLOR);
     assert.equal(s.calibrationData, undefined);
@@ -307,7 +339,7 @@ test('legacy hotkey Z migrates to P once', () => {
     const store = createSettingsStore({ cwd: dir, name: 'pyng-settings-test' });
     assert.deepEqual(loadSettings(store).hotkey, { accelerator: 'P', mode: 'hold' });
     assert.deepEqual(getHotkey(store), { accelerator: 'P', mode: 'hold' });
-    assert.equal(loadSettings(store).version, 6);
+    assert.equal(loadSettings(store).version, 7);
     saveHotkey('Z', 'press', store);
     assert.deepEqual(getHotkey(store), { accelerator: 'Z', mode: 'press' });
   } finally {

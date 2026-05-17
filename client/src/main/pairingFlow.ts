@@ -122,6 +122,43 @@ export async function runRedeemFlow(
   return { groupId, sessionId };
 }
 
+export async function runResumeFlow(
+  client: WsClient,
+  groupId: string,
+  log: (line: string) => void,
+  opts: FlowOptions = {},
+): Promise<{ groupId: string; sessionId: string }> {
+  client.send('hello', { clientVersion: CLIENT_VERSION, platform: platform() });
+  log('hello sent');
+
+  const welcome = await adaptAbort(client.waitFor('welcome', { signal: opts.signal }));
+  const { sessionId } = welcome.payload;
+  log(`welcome received (sessionId=${sessionId})`);
+  opts.onSessionId?.(sessionId);
+
+  client.send('pair:resume', { groupId });
+  log(`pair:resume sent (groupId=${groupId})`);
+
+  const result = await adaptAbort(
+    Promise.race([
+      client
+        .waitFor('pair:established', { signal: opts.signal })
+        .then((env) => ({ kind: 'ok' as const, env })),
+      client
+        .waitFor('pair:invalid', { signal: opts.signal })
+        .then((env) => ({ kind: 'invalid' as const, env })),
+    ]),
+  );
+
+  if (result.kind === 'invalid') {
+    throw new PairInvalidError(result.env.payload.reason);
+  }
+
+  const establishedGroupId = result.env.payload.groupId;
+  log(`Pair resumed! groupId=${establishedGroupId}`);
+  return { groupId: establishedGroupId, sessionId };
+}
+
 export class PairInvalidError extends Error {
   constructor(public readonly reason: string) {
     super(`pair:invalid (${reason})`);

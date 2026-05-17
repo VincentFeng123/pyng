@@ -7,7 +7,8 @@
   "workspaces": [
     "shared",
     "server",
-    "client"
+    "client",
+    "cloudflare"
   ],
   "engines": {
     "node": ">=20"
@@ -19,6 +20,8 @@
     "dev:mock": "node --import tsx scripts/dev.ts --mock",
     "dev:peer": "node --import tsx scripts/dev-peer.ts",
     "dev:solo": "node --import tsx scripts/dev-solo.ts",
+    "dev:cloudflare": "npm run dev --workspace @pyng/cloudflare-relay",
+    "deploy:cloudflare": "npm run deploy --workspace @pyng/cloudflare-relay",
     "lint": "eslint . && prettier --check .",
     "lint:tsc": "npm run lint --workspaces --if-present",
     "test": "npm run test:integration && npm run test --workspaces --if-present",

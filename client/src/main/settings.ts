@@ -10,7 +10,7 @@ export type HotkeyConfig = {
 };
 
 export type SettingsSchema = {
-  version: 6;
+  version: 7;
   avatar: {
     imageBase64: string;
     setAt: number;
@@ -19,6 +19,10 @@ export type SettingsSchema = {
   firstRunHintShown: boolean;
   robloxUsername: string;
   pingColor: string;
+  persistentPair?: {
+    groupId: string;
+    pairedAt: number;
+  };
   calibrationData?: {
     pixelsPerDegree: number;
     mousePixelsPerDegree: number;
@@ -43,7 +47,7 @@ const DEFAULT_HOTKEY: HotkeyConfig = {
   mode: 'hold',
 };
 
-const SETTINGS_VERSION = 6;
+const SETTINGS_VERSION = 7;
 
 const DEFAULTS: SettingsSchema = {
   version: SETTINGS_VERSION,
@@ -52,6 +56,7 @@ const DEFAULTS: SettingsSchema = {
   firstRunHintShown: false,
   robloxUsername: '',
   pingColor: DEFAULT_PING_COLOR,
+  persistentPair: undefined,
   calibrationData: undefined,
   tracking: { fps: 'auto' },
   manualTrackingProfile: undefined,
@@ -91,6 +96,9 @@ function applyMigrations(store: ElectronStore<SettingsSchema>): void {
   }
   if ((store.get('version') as number) < 6) {
     store.set('pingColor', DEFAULT_PING_COLOR);
+    store.set('version', 6);
+  }
+  if ((store.get('version') as number) < 7) {
     store.set('version', SETTINGS_VERSION);
   }
 }
@@ -133,6 +141,7 @@ export function loadSettings(
     firstRunHintShown: store.get('firstRunHintShown'),
     robloxUsername: store.get('robloxUsername'),
     pingColor: getPingColor(store),
+    persistentPair: getPersistentPair(store) ?? undefined,
     calibrationData: store.get('calibrationData'),
     tracking: store.get('tracking'),
     manualTrackingProfile: store.get('manualTrackingProfile'),
@@ -239,6 +248,36 @@ export function getPingColor(store: ElectronStore<SettingsSchema> = getDefaultSt
     }
   }
   return DEFAULT_PING_COLOR;
+}
+
+const GROUP_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function savePersistentPair(
+  groupId: string,
+  store: ElectronStore<SettingsSchema> = getDefaultStore(),
+): void {
+  if (!GROUP_ID_PATTERN.test(groupId)) {
+    throw new Error('persistent pair groupId must be a UUID');
+  }
+  store.set('persistentPair', { groupId, pairedAt: Date.now() });
+}
+
+export function getPersistentPair(
+  store: ElectronStore<SettingsSchema> = getDefaultStore(),
+): SettingsSchema['persistentPair'] | null {
+  const pair = store.get('persistentPair');
+  if (!pair) return null;
+  if (!GROUP_ID_PATTERN.test(pair.groupId) || !Number.isFinite(pair.pairedAt)) {
+    return null;
+  }
+  return pair;
+}
+
+export function clearPersistentPair(
+  store: ElectronStore<SettingsSchema> = getDefaultStore(),
+): void {
+  store.delete('persistentPair');
 }
 
 export function saveCalibrationData(

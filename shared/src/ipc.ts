@@ -90,12 +90,16 @@ export type SettingsHotkey = {
 export type TrackingFps = 'auto' | 10 | 15 | 30 | 60;
 
 export type SettingsSnapshot = {
-  version: 6;
+  version: 7;
   avatar: SettingsAvatar;
   hotkey: SettingsHotkey;
   firstRunHintShown: boolean;
   robloxUsername: string;
   pingColor: string;
+  persistentPair?: {
+    groupId: string;
+    pairedAt: number;
+  };
   calibrationData: {
     pixelsPerDegree: number;
     mousePixelsPerDegree: number;

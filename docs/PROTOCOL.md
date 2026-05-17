@@ -80,6 +80,16 @@ payload: {
 // Response is pair:established (success) or pair:invalid (failed)
 ```
 
+#### `pair:revoke` (client → server)
+Explicitly revoke a durable pair. Cloudflare relay deployments persist pair
+groups and use this to clear long-term pairing on manual unpair.
+```typescript
+payload: {
+  groupId: string;
+};
+// Server broadcasts pair:broken { reason: 'explicit' } to active group members.
+```
+
 ### Spectator detection
 
 #### `username:announce` (client → server → peer)
@@ -303,19 +313,14 @@ indicates connection status. The connection state visible to the renderer
 is `disconnected → reconnecting → connected` (or `reconnecting → disconnected`
 on each failed attempt).
 
-### Pair resume (v2: NOT implemented)
+### Pair Resume
 
-`pair:resume` is defined in the protocol union but the server does not handle
-it in v2. Reasoning: the relay's group state is in-memory and ephemeral, with
-no grace period. If a client's socket closes, its session is dropped from
-the group immediately on `dropSession`. Re-pairing requires a fresh code.
+The Cloudflare relay persists pair groups and handles `pair:resume` as the
+long-term reconnect path. The Electron client stores the last durable `groupId`
+locally and attempts resume after reconnect or restart.
 
-The client-side reconnect flow reflects this: on reconnect-while-paired, the
-state machine transitions the user back to `unpaired` with a `pairLostHint`
-flag, and the renderer surfaces a "Connection dropped — please re-pair"
-banner. The user generates or redeems a new code from there. The
-`pair:resume` envelope shape stays defined so a future v3 grace-period
-implementation can layer on without a protocol change.
+The Node/Railway relay still keeps pair groups in memory, so resume there is
+best-effort and limited by its existing group cleanup behavior.
 
 ## Versioning
 

@@ -52,7 +52,10 @@ respectively). `npm run dev` starts a local relay on `ws://localhost:7788`.
 
 For production builds, the client points at the Railway-hosted relay
 (`wss://pyng-relay.up.railway.app`); override with `PYNG_RELAY_URL=...` for
-self-hosted relays. See `server/DEPLOY.md` for relay deploy instructions.
+self-hosted relays. For Cloudflare Workers + Durable Objects deployment, use
+`PYNG_BUILD_RELAY_URL=...` when building the packaged Electron app. See
+`docs/CLOUDFLARE_DEPLOY.md` for the full Cloudflare setup and
+`server/DEPLOY.md` for Railway relay deploy instructions.
 
 ## Architecture
 

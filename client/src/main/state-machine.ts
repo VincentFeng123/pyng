@@ -13,9 +13,15 @@ import {
   PairInvalidError,
   runGenerateFlow,
   runRedeemFlow,
+  runResumeFlow,
   type FlowOptions,
 } from './pairingFlow.js';
-import { loadSettings } from './settings.js';
+import {
+  clearPersistentPair,
+  getPersistentPair,
+  loadSettings,
+  savePersistentPair,
+} from './settings.js';
 import { AbortFlowError } from './state-machine-errors.js';
 
 export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
@@ -71,6 +77,7 @@ export class PairStateMachine {
   private reconnectTimer: NodeJS.Timeout | null = null;
   private reconnectAttempt = 0;
   private unsubAvatarListener: (() => void) | null = null;
+  private unsubPairBrokenListener: (() => void) | null = null;
   private unsubAckListener: (() => void) | null = null;
   private unsubLatencyListener: (() => void) | null = null;
   private unsubCloseListener: (() => void) | null = null;
@@ -111,6 +118,22 @@ export class PairStateMachine {
       this.log(
         `received peer avatar sessionId=${msg.payload.sessionId} size=${msg.payload.imageBase64.length}`,
       );
+    });
+    this.unsubPairBrokenListener = this.client.onMessage((msg) => {
+      if (msg.type !== 'pair:broken') return;
+      if (this.state.pair.kind !== 'paired') return;
+      this.log(`pair:broken reason=${msg.payload.reason}`);
+      clearPersistentPair();
+      this.peerAvatars.clear();
+      this.latency.reset();
+      this.setStateAtomic({
+        connection: this.state.connection,
+        pair: { kind: 'unpaired', error: `pair ended: ${msg.payload.reason}` },
+        pairLostHint: false,
+        latencyMs: null,
+        spectatorState: null,
+        peerRobloxUsername: null,
+      });
     });
     // Hook ping:ack arrivals into the latency tracker. The server sends an
     // ack to the sender on every ping:drop receipt. The in-flight map only
@@ -201,10 +224,20 @@ export class PairStateMachine {
   }
 
   requestUnpair(): void {
+    const paired = this.state.pair.kind === 'paired' ? this.state.pair : null;
     if (this.inFlightAbort) {
       this.inFlightAbort.abort();
       this.inFlightAbort = null;
     }
+    if (paired) {
+      try {
+        this.client.send('pair:revoke', { groupId: paired.groupId }, { groupId: paired.groupId });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.log(`pair:revoke send failed: ${message}`);
+      }
+    }
+    clearPersistentPair();
     this.peerAvatars.clear();
     this.latency.reset();
     this.clearPairLostHint();
@@ -243,6 +276,10 @@ export class PairStateMachine {
       this.unsubAvatarListener();
       this.unsubAvatarListener = null;
     }
+    if (this.unsubPairBrokenListener) {
+      this.unsubPairBrokenListener();
+      this.unsubPairBrokenListener = null;
+    }
     if (this.unsubAckListener) {
       this.unsubAckListener();
       this.unsubAckListener = null;
@@ -278,11 +315,7 @@ export class PairStateMachine {
       this.reconnectAttempt = 0;
       this.transitionConnection('connected');
       this.log(`connected to ${this.config.relayUrl}`);
-      // Note: v2 intentionally does NOT pair:resume on reconnect. The
-      // relay's session state is ephemeral and a pair:resume would race
-      // the server's group cleanup. If the user was paired before the
-      // drop, onSocketClosed already transitioned pair to 'unpaired' with
-      // pairLostHint=true; the renderer surfaces a re-pair banner.
+      await this.resumePersistentPair();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       this.log(`connect failed: ${message}`);
@@ -315,8 +348,8 @@ export class PairStateMachine {
       this.inFlightAbort.abort();
       this.inFlightAbort = null;
     }
-    // Disconnect-while-paired: drop pair to unpaired with the pair-lost hint
-    // so the renderer can show a "connection dropped — please re-pair" banner.
+    // Disconnect-while-paired: drop live state, but keep the saved groupId.
+    // Cloudflare-backed long-term pairs can resume automatically on reconnect.
     // The transition away from 'paired' triggers the input-bridge subscriber
     // (input-bridge.ts) which unregisters the hotkey AND fires
     // fireHoldEnd → exitPingMode if a hold was in progress. This is the
@@ -348,8 +381,40 @@ export class PairStateMachine {
   }
 
   private onPaired(groupId: string, sessionId: string): void {
+    savePersistentPair(groupId);
     this.transitionPair({ kind: 'paired', groupId, sessionId });
     this.publishOwnAvatar(groupId, sessionId);
+  }
+
+  private async resumePersistentPair(): Promise<void> {
+    const savedPair = getPersistentPair();
+    if (!savedPair || this.state.pair.kind !== 'unpaired') return;
+
+    this.log(`attempting pair resume groupId=${savedPair.groupId}`);
+    this.inFlightAbort = new AbortController();
+    const signal = this.inFlightAbort.signal;
+    try {
+      const { groupId, sessionId } = await runResumeFlow(this.client, savedPair.groupId, this.log, {
+        signal,
+      });
+      this.clearPairLostHint();
+      this.onPaired(groupId, sessionId);
+    } catch (err) {
+      if (err instanceof PairInvalidError) {
+        this.log(`saved pair invalid reason=${err.reason}; clearing saved pair`);
+        clearPersistentPair();
+        this.transitionPair({ kind: 'unpaired', error: `saved pair invalid: ${err.reason}` });
+        return;
+      }
+      if (err instanceof AbortFlowError) {
+        this.log('pair resume cancelled');
+        return;
+      }
+      const message = err instanceof Error ? err.message : String(err);
+      this.log(`pair resume failed: ${message}`);
+    } finally {
+      this.inFlightAbort = null;
+    }
   }
 
   private publishOwnAvatar(groupId: string, sessionId: string): void {

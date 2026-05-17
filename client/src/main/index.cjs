@@ -24110,12 +24110,11 @@ var require_lib = __commonJS({
 
 // src/main/index.ts
 var import_electron16 = require("electron");
-var import_node_crypto5 = require("node:crypto");
+var import_node_crypto4 = require("node:crypto");
 var import_node_path11 = __toESM(require("node:path"), 1);
 var import_node_url4 = require("node:url");
 
 // ../shared/src/protocol.ts
-var import_node_crypto = require("node:crypto");
 var MAX_AVATAR_BASE64_LEN = 64 * 1024;
 var MESSAGE_TYPES = /* @__PURE__ */ new Set([
   "pair:generate",
@@ -24125,6 +24124,7 @@ var MESSAGE_TYPES = /* @__PURE__ */ new Set([
   "pair:invalid",
   "pair:broken",
   "pair:resume",
+  "pair:revoke",
   "username:announce",
   "username:match",
   "peer:avatar",
@@ -24141,7 +24141,7 @@ function createEnvelope(type, payload, opts) {
   const envelope = {
     type,
     payload,
-    messageId: (0, import_node_crypto.randomUUID)(),
+    messageId: crypto.randomUUID(),
     timestamp: Date.now(),
     ...opts?.groupId !== void 0 ? { groupId: opts.groupId } : {}
   };
@@ -24265,7 +24265,9 @@ async function showAccessibilityPrompt(parent) {
 
 // src/main/config.ts
 var import_electron2 = require("electron");
-var PROD_RELAY_URL = "wss://pyng-relay.up.railway.app";
+var DEFAULT_PROD_RELAY_URL = "wss://pyng-relay.up.railway.app";
+var BUILD_RELAY_URL = true ? "".trim() : "";
+var PROD_RELAY_URL = BUILD_RELAY_URL.length > 0 ? BUILD_RELAY_URL : DEFAULT_PROD_RELAY_URL;
 var DEV_RELAY_URL = "ws://localhost:7788";
 function isDev() {
   return process.env.NODE_ENV === "development" || !import_electron2.app.isPackaged;
@@ -24500,6 +24502,28 @@ async function runRedeemFlow(client, code, log, opts = {}) {
     await delay(POST_PAIR_HOLD_MS, opts.signal);
   }
   return { groupId, sessionId };
+}
+async function runResumeFlow(client, groupId, log, opts = {}) {
+  client.send("hello", { clientVersion: CLIENT_VERSION, platform: platform() });
+  log("hello sent");
+  const welcome = await adaptAbort(client.waitFor("welcome", { signal: opts.signal }));
+  const { sessionId } = welcome.payload;
+  log(`welcome received (sessionId=${sessionId})`);
+  opts.onSessionId?.(sessionId);
+  client.send("pair:resume", { groupId });
+  log(`pair:resume sent (groupId=${groupId})`);
+  const result = await adaptAbort(
+    Promise.race([
+      client.waitFor("pair:established", { signal: opts.signal }).then((env2) => ({ kind: "ok", env: env2 })),
+      client.waitFor("pair:invalid", { signal: opts.signal }).then((env2) => ({ kind: "invalid", env: env2 }))
+    ])
+  );
+  if (result.kind === "invalid") {
+    throw new PairInvalidError(result.env.payload.reason);
+  }
+  const establishedGroupId = result.env.payload.groupId;
+  log(`Pair resumed! groupId=${establishedGroupId}`);
+  return { groupId: establishedGroupId, sessionId };
 }
 var PairInvalidError = class extends Error {
   constructor(reason) {
@@ -24886,7 +24910,7 @@ var import_node_util2 = require("node:util");
 var import_node_process6 = __toESM(require("node:process"), 1);
 var import_node_fs4 = __toESM(require("node:fs"), 1);
 var import_node_path6 = __toESM(require("node:path"), 1);
-var import_node_crypto2 = __toESM(require("node:crypto"), 1);
+var import_node_crypto = __toESM(require("node:crypto"), 1);
 var import_node_assert = __toESM(require("node:assert"), 1);
 
 // ../node_modules/dot-prop/index.js
@@ -25993,8 +26017,8 @@ var Conf = class {
     }
     try {
       const initializationVector = data.slice(0, 16);
-      const password = import_node_crypto2.default.pbkdf2Sync(this.#encryptionKey, initializationVector.toString(), 1e4, 32, "sha512");
-      const decipher = import_node_crypto2.default.createDecipheriv(encryptionAlgorithm, password, initializationVector);
+      const password = import_node_crypto.default.pbkdf2Sync(this.#encryptionKey, initializationVector.toString(), 1e4, 32, "sha512");
+      const decipher = import_node_crypto.default.createDecipheriv(encryptionAlgorithm, password, initializationVector);
       const slice = data.slice(17);
       const dataUpdate = typeof slice === "string" ? stringToUint8Array(slice) : slice;
       return uint8ArrayToString(concatUint8Arrays([decipher.update(dataUpdate), decipher.final()]));
@@ -26037,9 +26061,9 @@ var Conf = class {
   _write(value) {
     let data = this._serialize(value);
     if (this.#encryptionKey) {
-      const initializationVector = import_node_crypto2.default.randomBytes(16);
-      const password = import_node_crypto2.default.pbkdf2Sync(this.#encryptionKey, initializationVector.toString(), 1e4, 32, "sha512");
-      const cipher = import_node_crypto2.default.createCipheriv(encryptionAlgorithm, password, initializationVector);
+      const initializationVector = import_node_crypto.default.randomBytes(16);
+      const password = import_node_crypto.default.pbkdf2Sync(this.#encryptionKey, initializationVector.toString(), 1e4, 32, "sha512");
+      const cipher = import_node_crypto.default.createCipheriv(encryptionAlgorithm, password, initializationVector);
       data = concatUint8Arrays([initializationVector, stringToUint8Array(":"), cipher.update(stringToUint8Array(data)), cipher.final()]);
     }
     if (import_node_process6.default.env.SNAP) {
@@ -26213,7 +26237,7 @@ var DEFAULT_HOTKEY = {
   accelerator: "P",
   mode: "hold"
 };
-var SETTINGS_VERSION = 6;
+var SETTINGS_VERSION = 7;
 var DEFAULTS = {
   version: SETTINGS_VERSION,
   avatar: null,
@@ -26221,6 +26245,7 @@ var DEFAULTS = {
   firstRunHintShown: false,
   robloxUsername: "",
   pingColor: DEFAULT_PING_COLOR,
+  persistentPair: void 0,
   calibrationData: void 0,
   tracking: { fps: "auto" },
   manualTrackingProfile: void 0
@@ -26248,6 +26273,9 @@ function applyMigrations(store) {
   }
   if (store.get("version") < 6) {
     store.set("pingColor", DEFAULT_PING_COLOR);
+    store.set("version", 6);
+  }
+  if (store.get("version") < 7) {
     store.set("version", SETTINGS_VERSION);
   }
 }
@@ -26279,6 +26307,7 @@ function loadSettings(store = getDefaultStore()) {
     firstRunHintShown: store.get("firstRunHintShown"),
     robloxUsername: store.get("robloxUsername"),
     pingColor: getPingColor(store),
+    persistentPair: getPersistentPair(store) ?? void 0,
     calibrationData: store.get("calibrationData"),
     tracking: store.get("tracking"),
     manualTrackingProfile: store.get("manualTrackingProfile")
@@ -26338,6 +26367,24 @@ function getPingColor(store = getDefaultStore()) {
     }
   }
   return DEFAULT_PING_COLOR;
+}
+var GROUP_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+function savePersistentPair(groupId, store = getDefaultStore()) {
+  if (!GROUP_ID_PATTERN.test(groupId)) {
+    throw new Error("persistent pair groupId must be a UUID");
+  }
+  store.set("persistentPair", { groupId, pairedAt: Date.now() });
+}
+function getPersistentPair(store = getDefaultStore()) {
+  const pair = store.get("persistentPair");
+  if (!pair) return null;
+  if (!GROUP_ID_PATTERN.test(pair.groupId) || !Number.isFinite(pair.pairedAt)) {
+    return null;
+  }
+  return pair;
+}
+function clearPersistentPair(store = getDefaultStore()) {
+  store.delete("persistentPair");
 }
 function saveCalibrationData(data, store = getDefaultStore()) {
   store.set("calibrationData", data);
@@ -26779,6 +26826,7 @@ var PairStateMachine = class {
   reconnectTimer = null;
   reconnectAttempt = 0;
   unsubAvatarListener = null;
+  unsubPairBrokenListener = null;
   unsubAckListener = null;
   unsubLatencyListener = null;
   unsubCloseListener = null;
@@ -26811,6 +26859,22 @@ var PairStateMachine = class {
       this.log(
         `received peer avatar sessionId=${msg.payload.sessionId} size=${msg.payload.imageBase64.length}`
       );
+    });
+    this.unsubPairBrokenListener = this.client.onMessage((msg) => {
+      if (msg.type !== "pair:broken") return;
+      if (this.state.pair.kind !== "paired") return;
+      this.log(`pair:broken reason=${msg.payload.reason}`);
+      clearPersistentPair();
+      this.peerAvatars.clear();
+      this.latency.reset();
+      this.setStateAtomic({
+        connection: this.state.connection,
+        pair: { kind: "unpaired", error: `pair ended: ${msg.payload.reason}` },
+        pairLostHint: false,
+        latencyMs: null,
+        spectatorState: null,
+        peerRobloxUsername: null
+      });
     });
     this.unsubAckListener = this.client.onMessage((msg) => {
       if (msg.type !== "ping:ack") return;
@@ -26890,10 +26954,20 @@ var PairStateMachine = class {
     }
   }
   requestUnpair() {
+    const paired = this.state.pair.kind === "paired" ? this.state.pair : null;
     if (this.inFlightAbort) {
       this.inFlightAbort.abort();
       this.inFlightAbort = null;
     }
+    if (paired) {
+      try {
+        this.client.send("pair:revoke", { groupId: paired.groupId }, { groupId: paired.groupId });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.log(`pair:revoke send failed: ${message}`);
+      }
+    }
+    clearPersistentPair();
     this.peerAvatars.clear();
     this.latency.reset();
     this.clearPairLostHint();
@@ -26927,6 +27001,10 @@ var PairStateMachine = class {
       this.unsubAvatarListener();
       this.unsubAvatarListener = null;
     }
+    if (this.unsubPairBrokenListener) {
+      this.unsubPairBrokenListener();
+      this.unsubPairBrokenListener = null;
+    }
     if (this.unsubAckListener) {
       this.unsubAckListener();
       this.unsubAckListener = null;
@@ -26957,6 +27035,7 @@ var PairStateMachine = class {
       this.reconnectAttempt = 0;
       this.transitionConnection("connected");
       this.log(`connected to ${this.config.relayUrl}`);
+      await this.resumePersistentPair();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       this.log(`connect failed: ${message}`);
@@ -27012,8 +27091,38 @@ var PairStateMachine = class {
     this.scheduleReconnect();
   }
   onPaired(groupId, sessionId) {
+    savePersistentPair(groupId);
     this.transitionPair({ kind: "paired", groupId, sessionId });
     this.publishOwnAvatar(groupId, sessionId);
+  }
+  async resumePersistentPair() {
+    const savedPair = getPersistentPair();
+    if (!savedPair || this.state.pair.kind !== "unpaired") return;
+    this.log(`attempting pair resume groupId=${savedPair.groupId}`);
+    this.inFlightAbort = new AbortController();
+    const signal = this.inFlightAbort.signal;
+    try {
+      const { groupId, sessionId } = await runResumeFlow(this.client, savedPair.groupId, this.log, {
+        signal
+      });
+      this.clearPairLostHint();
+      this.onPaired(groupId, sessionId);
+    } catch (err) {
+      if (err instanceof PairInvalidError) {
+        this.log(`saved pair invalid reason=${err.reason}; clearing saved pair`);
+        clearPersistentPair();
+        this.transitionPair({ kind: "unpaired", error: `saved pair invalid: ${err.reason}` });
+        return;
+      }
+      if (err instanceof AbortFlowError) {
+        this.log("pair resume cancelled");
+        return;
+      }
+      const message = err instanceof Error ? err.message : String(err);
+      this.log(`pair resume failed: ${message}`);
+    } finally {
+      this.inFlightAbort = null;
+    }
   }
   publishOwnAvatar(groupId, sessionId) {
     const settings = loadSettings();
@@ -27292,7 +27401,7 @@ var import_uiohook_napi = require("uiohook-napi");
 
 // src/main/input/macos-raw-mouse.ts
 var import_node_child_process = require("node:child_process");
-var import_node_crypto3 = require("node:crypto");
+var import_node_crypto2 = require("node:crypto");
 var import_node_fs5 = __toESM(require("node:fs"), 1);
 var import_node_os2 = __toESM(require("node:os"), 1);
 var import_node_path8 = __toESM(require("node:path"), 1);
@@ -27499,7 +27608,7 @@ var MacRawMouseDeltaSource = class {
     }
   }
   getHelperPaths() {
-    const hash = (0, import_node_crypto3.createHash)("sha256").update(SWIFT_SOURCE).digest("hex").slice(0, 16);
+    const hash = (0, import_node_crypto2.createHash)("sha256").update(SWIFT_SOURCE).digest("hex").slice(0, 16);
     const cacheDir = import_node_path8.default.join(import_node_os2.default.tmpdir(), "pyng-raw-mouse");
     return {
       cacheDir,
@@ -28597,7 +28706,7 @@ function registerCalibrationHandlers(getMainWindow2) {
 
 // src/main/tracking/macos-screen-capture.ts
 var import_node_child_process2 = require("node:child_process");
-var import_node_crypto4 = require("node:crypto");
+var import_node_crypto3 = require("node:crypto");
 var import_node_fs6 = __toESM(require("node:fs"), 1);
 var import_node_os3 = __toESM(require("node:os"), 1);
 var import_node_path10 = __toESM(require("node:path"), 1);
@@ -28969,7 +29078,7 @@ var MacScreenCaptureLoop = class {
     this.fallback.start();
   }
   getHelperPaths() {
-    const hash = (0, import_node_crypto4.createHash)("sha256").update(SWIFT_SOURCE2).digest("hex").slice(0, 16);
+    const hash = (0, import_node_crypto3.createHash)("sha256").update(SWIFT_SOURCE2).digest("hex").slice(0, 16);
     const cacheDir = import_node_path10.default.join(import_node_os3.default.tmpdir(), "pyng-screen-capture");
     return {
       cacheDir,
@@ -34333,7 +34442,7 @@ async function runSoloMode() {
     if (width <= 0 || height <= 0) return;
     const normX = Math.min(1, Math.max(0, (cursor.x - x) / width));
     const normY = Math.min(1, Math.max(0, (cursor.y - y) / height));
-    const messageId = (0, import_node_crypto5.randomUUID)();
+    const messageId = (0, import_node_crypto4.randomUUID)();
     const payload = {
       coords: { x: normX, y: normY },
       color: getPingColor(),

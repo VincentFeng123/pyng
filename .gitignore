@@ -20,6 +20,7 @@ Thumbs.db
 .env.*.local
 
 *.tsbuildinfo
+.wrangler/
 
 # Electron build artifacts
 client/dist/

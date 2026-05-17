@@ -50,7 +50,12 @@ export default [
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        project: ['./shared/tsconfig.json', './server/tsconfig.json', './client/tsconfig.json'],
+        project: [
+          './shared/tsconfig.json',
+          './server/tsconfig.json',
+          './client/tsconfig.json',
+          './cloudflare/tsconfig.json',
+        ],
         tsconfigRootDir: import.meta.dirname,
         ecmaVersion: 2022,
         sourceType: 'module',
