@@ -17598,8 +17598,8 @@ var require_coerce = __commonJS({
       const minor = match[3] || "0";
       const patch = match[4] || "0";
       const prerelease = options.includePrerelease && match[5] ? `-${match[5]}` : "";
-      const build2 = options.includePrerelease && match[6] ? `+${match[6]}` : "";
-      return parse(`${major}.${minor}.${patch}${prerelease}${build2}`, options);
+      const build = options.includePrerelease && match[6] ? `+${match[6]}` : "";
+      return parse(`${major}.${minor}.${patch}${prerelease}${build}`, options);
     };
     module2.exports = coerce;
   }
@@ -24535,7 +24535,6 @@ var PairInvalidError = class extends Error {
 
 // src/main/overlay.ts
 var import_electron3 = require("electron");
-var import_esbuild = require("esbuild");
 var import_node_fs = require("node:fs");
 var import_node_url = require("node:url");
 var import_node_path = __toESM(require("node:path"), 1);
@@ -24557,6 +24556,10 @@ var MAIN_RENDERER_SOURCE = import_node_path.default.join(RENDERER_DIR, "main.tsx
 var MAIN_RENDERER_OUTPUT = import_node_path.default.join(RENDERER_DIR, "main.js");
 var overlayAssetsReady = null;
 var mainAssetsReady = null;
+async function getEsbuildBuild() {
+  const { build } = await import("esbuild");
+  return build;
+}
 function isPackagedBuild() {
   if (import_electron3.app.isPackaged) return true;
   if ((0, import_node_fs.existsSync)(MAIN_PRELOAD_OUTPUT) && (0, import_node_fs.existsSync)(MAIN_RENDERER_OUTPUT)) {
@@ -24569,49 +24572,51 @@ function prepareOverlayAssets() {
     overlayAssetsReady = Promise.resolve();
     return overlayAssetsReady;
   }
-  overlayAssetsReady = Promise.all([
-    (0, import_esbuild.build)({
-      entryPoints: [OVERLAY_RENDERER_SOURCE],
-      outfile: OVERLAY_RENDERER_OUTPUT,
-      format: "esm",
-      target: "es2022",
-      bundle: false,
-      sourcemap: "inline",
-      logLevel: "silent"
-    }),
-    // overlay.ts imports sibling modules at runtime (`*.js` specifiers).
-    // bundle:false keeps imports as ES module specifiers, so every imported
-    // file must also be compiled separately or the overlay module fails to load.
-    (0, import_esbuild.build)({
-      entryPoints: [OVERLAY_TRACKING_MATH_SOURCE],
-      outfile: OVERLAY_TRACKING_MATH_OUTPUT,
-      format: "esm",
-      target: "es2022",
-      bundle: false,
-      sourcemap: "inline",
-      logLevel: "silent"
-    }),
-    (0, import_esbuild.build)({
-      entryPoints: [OVERLAY_EDGE_ARROW_SOURCE],
-      outfile: OVERLAY_EDGE_ARROW_OUTPUT,
-      format: "esm",
-      target: "es2022",
-      bundle: false,
-      sourcemap: "inline",
-      logLevel: "silent"
-    }),
-    (0, import_esbuild.build)({
-      entryPoints: [OVERLAY_PRELOAD_SOURCE],
-      outfile: OVERLAY_PRELOAD_OUTPUT,
-      format: "cjs",
-      platform: "node",
-      target: "node20",
-      bundle: true,
-      external: ["electron"],
-      sourcemap: "inline",
-      logLevel: "silent"
-    })
-  ]).then(() => void 0);
+  overlayAssetsReady = getEsbuildBuild().then(
+    (build) => Promise.all([
+      build({
+        entryPoints: [OVERLAY_RENDERER_SOURCE],
+        outfile: OVERLAY_RENDERER_OUTPUT,
+        format: "esm",
+        target: "es2022",
+        bundle: false,
+        sourcemap: "inline",
+        logLevel: "silent"
+      }),
+      // overlay.ts imports sibling modules at runtime (`*.js` specifiers).
+      // bundle:false keeps imports as ES module specifiers, so every imported
+      // file must also be compiled separately or the overlay module fails to load.
+      build({
+        entryPoints: [OVERLAY_TRACKING_MATH_SOURCE],
+        outfile: OVERLAY_TRACKING_MATH_OUTPUT,
+        format: "esm",
+        target: "es2022",
+        bundle: false,
+        sourcemap: "inline",
+        logLevel: "silent"
+      }),
+      build({
+        entryPoints: [OVERLAY_EDGE_ARROW_SOURCE],
+        outfile: OVERLAY_EDGE_ARROW_OUTPUT,
+        format: "esm",
+        target: "es2022",
+        bundle: false,
+        sourcemap: "inline",
+        logLevel: "silent"
+      }),
+      build({
+        entryPoints: [OVERLAY_PRELOAD_SOURCE],
+        outfile: OVERLAY_PRELOAD_OUTPUT,
+        format: "cjs",
+        platform: "node",
+        target: "node20",
+        bundle: true,
+        external: ["electron"],
+        sourcemap: "inline",
+        logLevel: "silent"
+      })
+    ]).then(() => void 0)
+  );
   return overlayAssetsReady;
 }
 var MAIN_PRELOAD_PATH = MAIN_PRELOAD_OUTPUT;
@@ -24622,30 +24627,32 @@ function prepareMainAssets() {
     mainAssetsReady = Promise.resolve();
     return mainAssetsReady;
   }
-  mainAssetsReady = Promise.all([
-    (0, import_esbuild.build)({
-      entryPoints: [MAIN_PRELOAD_SOURCE],
-      outfile: MAIN_PRELOAD_OUTPUT,
-      format: "cjs",
-      platform: "node",
-      target: "node20",
-      bundle: true,
-      external: ["electron"],
-      sourcemap: "inline",
-      logLevel: "silent"
-    }),
-    (0, import_esbuild.build)({
-      entryPoints: [MAIN_RENDERER_SOURCE],
-      outfile: MAIN_RENDERER_OUTPUT,
-      format: "esm",
-      target: "es2022",
-      bundle: true,
-      jsx: "automatic",
-      loader: { ".tsx": "tsx" },
-      sourcemap: "inline",
-      logLevel: "silent"
-    })
-  ]).then(() => void 0);
+  mainAssetsReady = getEsbuildBuild().then(
+    (build) => Promise.all([
+      build({
+        entryPoints: [MAIN_PRELOAD_SOURCE],
+        outfile: MAIN_PRELOAD_OUTPUT,
+        format: "cjs",
+        platform: "node",
+        target: "node20",
+        bundle: true,
+        external: ["electron"],
+        sourcemap: "inline",
+        logLevel: "silent"
+      }),
+      build({
+        entryPoints: [MAIN_RENDERER_SOURCE],
+        outfile: MAIN_RENDERER_OUTPUT,
+        format: "esm",
+        target: "es2022",
+        bundle: true,
+        jsx: "automatic",
+        loader: { ".tsx": "tsx" },
+        sourcemap: "inline",
+        logLevel: "silent"
+      })
+    ]).then(() => void 0)
+  );
   return mainAssetsReady;
 }
 function createOverlayWindow() {

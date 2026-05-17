@@ -1,5 +1,4 @@
 import { app, BrowserWindow, screen } from 'electron';
-import { build } from 'esbuild';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -25,6 +24,11 @@ const MAIN_RENDERER_OUTPUT = path.join(RENDERER_DIR, 'main.js');
 
 let overlayAssetsReady: Promise<void> | null = null;
 let mainAssetsReady: Promise<void> | null = null;
+
+async function getEsbuildBuild(): Promise<typeof import('esbuild').build> {
+  const { build } = await import('esbuild');
+  return build;
+}
 
 // In a packaged Electron app, scripts/build-main.ts has pre-built every
 // renderer/preload artifact and shipped them inside the asar. Running
@@ -52,49 +56,51 @@ export function prepareOverlayAssets(): Promise<void> {
     overlayAssetsReady = Promise.resolve();
     return overlayAssetsReady;
   }
-  overlayAssetsReady = Promise.all([
-    build({
-      entryPoints: [OVERLAY_RENDERER_SOURCE],
-      outfile: OVERLAY_RENDERER_OUTPUT,
-      format: 'esm',
-      target: 'es2022',
-      bundle: false,
-      sourcemap: 'inline',
-      logLevel: 'silent',
-    }),
-    // overlay.ts imports sibling modules at runtime (`*.js` specifiers).
-    // bundle:false keeps imports as ES module specifiers, so every imported
-    // file must also be compiled separately or the overlay module fails to load.
-    build({
-      entryPoints: [OVERLAY_TRACKING_MATH_SOURCE],
-      outfile: OVERLAY_TRACKING_MATH_OUTPUT,
-      format: 'esm',
-      target: 'es2022',
-      bundle: false,
-      sourcemap: 'inline',
-      logLevel: 'silent',
-    }),
-    build({
-      entryPoints: [OVERLAY_EDGE_ARROW_SOURCE],
-      outfile: OVERLAY_EDGE_ARROW_OUTPUT,
-      format: 'esm',
-      target: 'es2022',
-      bundle: false,
-      sourcemap: 'inline',
-      logLevel: 'silent',
-    }),
-    build({
-      entryPoints: [OVERLAY_PRELOAD_SOURCE],
-      outfile: OVERLAY_PRELOAD_OUTPUT,
-      format: 'cjs',
-      platform: 'node',
-      target: 'node20',
-      bundle: true,
-      external: ['electron'],
-      sourcemap: 'inline',
-      logLevel: 'silent',
-    }),
-  ]).then(() => undefined);
+  overlayAssetsReady = getEsbuildBuild().then((build) =>
+    Promise.all([
+      build({
+        entryPoints: [OVERLAY_RENDERER_SOURCE],
+        outfile: OVERLAY_RENDERER_OUTPUT,
+        format: 'esm',
+        target: 'es2022',
+        bundle: false,
+        sourcemap: 'inline',
+        logLevel: 'silent',
+      }),
+      // overlay.ts imports sibling modules at runtime (`*.js` specifiers).
+      // bundle:false keeps imports as ES module specifiers, so every imported
+      // file must also be compiled separately or the overlay module fails to load.
+      build({
+        entryPoints: [OVERLAY_TRACKING_MATH_SOURCE],
+        outfile: OVERLAY_TRACKING_MATH_OUTPUT,
+        format: 'esm',
+        target: 'es2022',
+        bundle: false,
+        sourcemap: 'inline',
+        logLevel: 'silent',
+      }),
+      build({
+        entryPoints: [OVERLAY_EDGE_ARROW_SOURCE],
+        outfile: OVERLAY_EDGE_ARROW_OUTPUT,
+        format: 'esm',
+        target: 'es2022',
+        bundle: false,
+        sourcemap: 'inline',
+        logLevel: 'silent',
+      }),
+      build({
+        entryPoints: [OVERLAY_PRELOAD_SOURCE],
+        outfile: OVERLAY_PRELOAD_OUTPUT,
+        format: 'cjs',
+        platform: 'node',
+        target: 'node20',
+        bundle: true,
+        external: ['electron'],
+        sourcemap: 'inline',
+        logLevel: 'silent',
+      }),
+    ]).then(() => undefined),
+  );
   return overlayAssetsReady;
 }
 
@@ -107,30 +113,32 @@ export function prepareMainAssets(): Promise<void> {
     mainAssetsReady = Promise.resolve();
     return mainAssetsReady;
   }
-  mainAssetsReady = Promise.all([
-    build({
-      entryPoints: [MAIN_PRELOAD_SOURCE],
-      outfile: MAIN_PRELOAD_OUTPUT,
-      format: 'cjs',
-      platform: 'node',
-      target: 'node20',
-      bundle: true,
-      external: ['electron'],
-      sourcemap: 'inline',
-      logLevel: 'silent',
-    }),
-    build({
-      entryPoints: [MAIN_RENDERER_SOURCE],
-      outfile: MAIN_RENDERER_OUTPUT,
-      format: 'esm',
-      target: 'es2022',
-      bundle: true,
-      jsx: 'automatic',
-      loader: { '.tsx': 'tsx' },
-      sourcemap: 'inline',
-      logLevel: 'silent',
-    }),
-  ]).then(() => undefined);
+  mainAssetsReady = getEsbuildBuild().then((build) =>
+    Promise.all([
+      build({
+        entryPoints: [MAIN_PRELOAD_SOURCE],
+        outfile: MAIN_PRELOAD_OUTPUT,
+        format: 'cjs',
+        platform: 'node',
+        target: 'node20',
+        bundle: true,
+        external: ['electron'],
+        sourcemap: 'inline',
+        logLevel: 'silent',
+      }),
+      build({
+        entryPoints: [MAIN_RENDERER_SOURCE],
+        outfile: MAIN_RENDERER_OUTPUT,
+        format: 'esm',
+        target: 'es2022',
+        bundle: true,
+        jsx: 'automatic',
+        loader: { '.tsx': 'tsx' },
+        sourcemap: 'inline',
+        logLevel: 'silent',
+      }),
+    ]).then(() => undefined),
+  );
   return mainAssetsReady;
 }
 
