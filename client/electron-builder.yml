@@ -37,6 +37,11 @@ files:
   - 'build/tray-iconTemplate.png'
   - 'build/tray-iconTemplate@2x.png'
   - 'package.json'
+  # Native/runtime dependencies externalized from the main-process bundle.
+  # `sharp` delegates to platform packages under @img/*, e.g.
+  # @img/sharp-win32-x64 and @img/sharp-libvips-win32-x64 on Windows.
+  - 'node_modules/sharp/**'
+  - 'node_modules/@img/**'
   - 'src/main/tracking/games/**'
   - '!src/**/*.test.ts'
   - '!src/**/*.test.tsx'
@@ -59,6 +64,10 @@ asarUnpack:
   # can load it at runtime.
   - 'node_modules/@u4/opencv4nodejs/**'
   - 'node_modules/@u4/opencv-build/**'
+  # sharp loads a platform-specific native .node addon and libvips binaries
+  # from optional @img packages. Those cannot be loaded from inside app.asar.
+  - 'node_modules/sharp/**'
+  - 'node_modules/@img/**'
 win:
   target:
     - target: nsis
