@@ -14,7 +14,7 @@ written for the maintainer using the Railway dashboard, not for end users.
 ## First-time deploy
 
 The deploy config lives at `/Users/vincentfeng/Documents/pyng/railway.json`
-(repo root). Railway reads this on every build and uses NIXPACKS to detect
+(repo root). Railway reads this on every build and uses Railpack to detect
 the Node + npm-workspaces layout automatically. The start command points
 explicitly at the `@pyng/server` workspace.
 
@@ -94,15 +94,13 @@ Or in a pinch (zero-downtime not guaranteed):
   retries with backoff once the service is unpaused).
 - Settings → Service → **Resume Service**.
 
-## Monorepo / NIXPACKS notes
+## Monorepo / Railpack notes
 
 The `startCommand` in `railway.json` invokes `npm run start --workspace=@pyng/server`,
-which runs from the repo root. The NIXPACKS builder runs `npm install`
-without explicit workspace flags by default, but our root `package.json`
-declares `workspaces: ["shared", "server", "client"]`, so npm picks them
-up automatically.
+which runs from the repo root. Railpack detects the root `package.json` and
+installs the npm workspaces declared there, including `server` and `shared`.
 
-If NIXPACKS detection fails (rare; usually visible as a build error about a
+If Railpack detection fails (rare; usually visible as a build error about a
 missing workspace package), fall back to an explicit `Procfile` at the repo
 root:
 
